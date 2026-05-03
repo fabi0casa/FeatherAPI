@@ -17,7 +17,6 @@ public class MainFrame extends JFrame {
     private JTextArea responseArea;
     private JTextArea headersArea;
     private JComboBox<HistoryEntry> historyBox;
-    private boolean isDarkTheme = true;
 
     private final ApiService api = new ApiService();
 
@@ -37,7 +36,6 @@ public class MainFrame extends JFrame {
 
         JButton sendBtn = new JButton("Enviar");
         JButton copyBtn = new JButton("Copiar resposta");
-        JButton themeBtn = new JButton("botaum");
 
         historyBox = new JComboBox<>();
         historyBox.addActionListener(e -> {
@@ -49,11 +47,9 @@ public class MainFrame extends JFrame {
 
         sendBtn.addActionListener(e -> send());
         copyBtn.addActionListener(e -> ClipboardUtil.copy(responseArea.getText()));
-        themeBtn.addActionListener(e -> toggleTheme());
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.add(sendBtn);
-        buttonPanel.add(themeBtn);
 
         JPanel top = new JPanel(new BorderLayout());
         top.add(methodBox, BorderLayout.WEST);
@@ -116,13 +112,4 @@ public class MainFrame extends JFrame {
         }
     }
 
-    private void toggleTheme() {
-        isDarkTheme = !isDarkTheme;
-        if (isDarkTheme) {
-            DarkTheme.apply();
-        } else {
-            LightTheme.apply();
-        }
-        SwingUtilities.updateComponentTreeUI(this);
-    }
 }
