@@ -22,6 +22,10 @@ public class MainFrame extends JFrame {
 
     public MainFrame() {
         setTitle("Feather API");
+
+        ImageIcon icon = new ImageIcon(getClass().getResource("/feather.png"));
+        setIconImage(icon.getImage());
+
         setSize(900,600);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
 
