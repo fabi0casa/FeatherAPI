@@ -22,7 +22,7 @@ public class MainFrame extends JFrame {
     private final ApiService api = new ApiService();
 
     public MainFrame() {
-        setTitle("Mini Postman Java");
+        setTitle("Feather API");
         setSize(900,600);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
 

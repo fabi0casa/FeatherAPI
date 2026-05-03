@@ -6,8 +6,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.mestre</groupId>
-    <artifactId>api-tester</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <artifactId>feather-api</artifactId>
+    <version>1.0</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
