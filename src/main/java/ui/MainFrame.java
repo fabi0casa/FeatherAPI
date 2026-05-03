@@ -27,7 +27,7 @@ public class MainFrame extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
 
         urlField = new JTextField("https://viacep.com.br/ws/01001000/json/");
-        methodBox = new JComboBox<>(new String[]{"GET","POST","PUT","DELETE"});
+        methodBox = new JComboBox<>(new String[]{"GET","POST","PUT","DELETE","PATCH"});
 
         bodyArea = new JTextArea();
         responseArea = new JTextArea();

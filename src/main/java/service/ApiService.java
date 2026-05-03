@@ -28,6 +28,9 @@ public class ApiService {
             case "DELETE":
                 builder.DELETE();
                 break;
+            case "PATCH":
+                builder.method("PATCH", HttpRequest.BodyPublishers.ofString(data.body));
+                break;
             default:
                 builder.GET();
         }
