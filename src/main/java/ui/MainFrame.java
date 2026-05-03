@@ -2,6 +2,7 @@ package ui;
 
 import service.ApiService;
 import model.RequestData;
+import model.HistoryEntry;
 import util.*;
 
 import javax.swing.*;
@@ -15,7 +16,8 @@ public class MainFrame extends JFrame {
     private JTextArea bodyArea;
     private JTextArea responseArea;
     private JTextArea headersArea;
-    private JComboBox<String> historyBox;
+    private JComboBox<HistoryEntry> historyBox;
+    private boolean isDarkTheme = true;
 
     private final ApiService api = new ApiService();
 
@@ -35,16 +37,28 @@ public class MainFrame extends JFrame {
 
         JButton sendBtn = new JButton("Enviar");
         JButton copyBtn = new JButton("Copiar resposta");
+        JButton themeBtn = new JButton("botaum");
 
         historyBox = new JComboBox<>();
+        historyBox.addActionListener(e -> {
+            HistoryEntry selected = (HistoryEntry) historyBox.getSelectedItem();
+            if (selected != null) {
+                responseArea.setText(selected.response);
+            }
+        });
 
         sendBtn.addActionListener(e -> send());
         copyBtn.addActionListener(e -> ClipboardUtil.copy(responseArea.getText()));
+        themeBtn.addActionListener(e -> toggleTheme());
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.add(sendBtn);
+        buttonPanel.add(themeBtn);
 
         JPanel top = new JPanel(new BorderLayout());
         top.add(methodBox, BorderLayout.WEST);
         top.add(urlField, BorderLayout.CENTER);
-        top.add(sendBtn, BorderLayout.EAST);
+        top.add(buttonPanel, BorderLayout.EAST);
 
         JTabbedPane tabs = new JTabbedPane();
         tabs.add("Body", new JScrollPane(bodyArea));
@@ -89,14 +103,26 @@ public class MainFrame extends JFrame {
             var response = api.send(data);
 
             String formatted = JsonFormatter.format(response.body());
+            String fullResponse = "Status: " + response.statusCode() + "\n\n" + formatted;
 
-            responseArea.setText("Status: " + response.statusCode() + "\n\n" + formatted);
+            responseArea.setText(fullResponse);
 
-            HistoryManager.add(data.method + " " + data.url);
-            historyBox.addItem(data.method + " " + data.url);
+            String requestInfo = data.method + " " + data.url;
+            HistoryManager.add(requestInfo, fullResponse);
+            historyBox.addItem(new HistoryEntry(requestInfo, fullResponse));
 
         } catch (Exception ex) {
             responseArea.setText("Erro: " + ex.getMessage());
         }
+    }
+
+    private void toggleTheme() {
+        isDarkTheme = !isDarkTheme;
+        if (isDarkTheme) {
+            DarkTheme.apply();
+        } else {
+            LightTheme.apply();
+        }
+        SwingUtilities.updateComponentTreeUI(this);
     }
 }
