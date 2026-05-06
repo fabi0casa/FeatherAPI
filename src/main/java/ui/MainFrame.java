@@ -5,23 +5,30 @@ import model.RequestData;
 import model.HistoryEntry;
 import util.*;
 
+import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLightLaf;
+import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
+import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
+import org.fife.ui.rsyntaxtextarea.Theme;
+import org.fife.ui.rtextarea.RTextScrollPane;
+
 import javax.swing.*;
 import javax.swing.undo.UndoManager;
 import java.awt.*;
 import java.awt.event.ActionEvent;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
+import java.io.IOException;
 import java.util.HashMap;
 
 public class MainFrame extends JFrame {
 
     private JTextField urlField;
     private JComboBox<String> methodBox;
-    private JTextArea bodyArea;
-    private JTextArea responseArea;
+    private RSyntaxTextArea bodyArea;
+    private RSyntaxTextArea responseArea;
     private JTextArea headersArea;
     private DefaultListModel<HistoryEntry> historyModel;
     private JList<HistoryEntry> historyList;
+    private JCheckBox darkThemeBox;
 
     private final ApiService api = new ApiService();
 
@@ -31,23 +38,31 @@ public class MainFrame extends JFrame {
         ImageIcon icon = new ImageIcon(getClass().getResource("/feather.png"));
         setIconImage(icon.getImage());
 
-        setSize(900,600);
+        setSize(1000, 700);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
 
         urlField = new JTextField("https://viacep.com.br/ws/01001000/json/");
-        methodBox = new JComboBox<>(new String[]{"GET","POST","PUT","DELETE","PATCH"});
+        methodBox = new JComboBox<>(new String[]{"GET", "POST", "PUT", "DELETE", "PATCH"});
 
-        bodyArea = new JTextArea();
+        bodyArea = new RSyntaxTextArea();
+        bodyArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JSON);
+        bodyArea.setCodeFoldingEnabled(true);
         setupEditor(bodyArea);
 
-        responseArea = new JTextArea();
-        headersArea = new JTextArea("Content-Type: application/json");
-        setupEditor(headersArea);
-
+        responseArea = new RSyntaxTextArea();
+        responseArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JSON);
         responseArea.setEditable(false);
+        setupEditor(responseArea);
+
+        headersArea = new JTextArea("Content-Type: application/json");
+        // Para headers mantemos JTextArea simples ou configuramos sem numeração de linha
+        // mas vamos aplicar o setupEditor para o Undo/Redo
 
         JButton sendBtn = new JButton("Enviar");
         JButton copyBtn = new JButton("Copiar resposta");
+
+        darkThemeBox = new JCheckBox("Tema Escuro");
+        darkThemeBox.addActionListener(e -> applyTheme(darkThemeBox.isSelected()));
 
         historyModel = new DefaultListModel<>();
         historyList = new JList<>(historyModel);
@@ -65,6 +80,7 @@ public class MainFrame extends JFrame {
         copyBtn.addActionListener(e -> ClipboardUtil.copy(responseArea.getText()));
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.add(darkThemeBox);
         buttonPanel.add(sendBtn);
 
         JPanel top = new JPanel(new BorderLayout());
@@ -73,19 +89,19 @@ public class MainFrame extends JFrame {
         top.add(buttonPanel, BorderLayout.EAST);
 
         JTabbedPane tabs = new JTabbedPane();
-        tabs.add("Body", new JScrollPane(bodyArea));
+        tabs.add("Body", new RTextScrollPane(bodyArea));
         tabs.add("Headers", new JScrollPane(headersArea));
 
         JPanel center = new JPanel(new BorderLayout());
         center.add(tabs, BorderLayout.CENTER);
 
         JPanel bottom = new JPanel(new BorderLayout());
-        bottom.add(new JScrollPane(responseArea), BorderLayout.CENTER);
+        bottom.add(new RTextScrollPane(responseArea), BorderLayout.CENTER);
         bottom.add(copyBtn, BorderLayout.SOUTH);
 
         // Split vertical entre Body e Resposta
         JSplitPane verticalSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, center, bottom);
-        verticalSplit.setDividerLocation(250);
+        verticalSplit.setDividerLocation(300);
         verticalSplit.setResizeWeight(0.5);
 
         JPanel historyPanel = new JPanel(new BorderLayout());
@@ -94,52 +110,62 @@ public class MainFrame extends JFrame {
 
         // Split horizontal entre a área principal e o Histórico
         JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, verticalSplit, historyPanel);
-        mainSplit.setDividerLocation(650);
+        mainSplit.setDividerLocation(750);
         mainSplit.setResizeWeight(0.8);
 
         setLayout(new BorderLayout());
         add(top, BorderLayout.NORTH);
         add(mainSplit, BorderLayout.CENTER);
+
+        // Aplicar Undo/Redo no headersArea que não é RSyntaxTextArea
+        setupHeadersEditor(headersArea);
     }
 
-    private void setupEditor(JTextArea textArea) {
-        // Tab -> 4 spaces
-        textArea.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_TAB) {
-                    e.consume();
-                    textArea.replaceSelection("    ");
-                }
-            }
-        });
+    private void setupEditor(RSyntaxTextArea textArea) {
+        textArea.setTabSize(4);
+        textArea.setTabsEmulated(true); // Converte TAB em espaços automaticamente
 
-        // Undo / Redo
+        // Undo / Redo já é nativo no RSyntaxTextArea, mas podemos reforçar atalhos se necessário
+        // No RSyntaxTextArea, Ctrl+Z e Ctrl+Y funcionam por padrão.
+    }
+
+    private void setupHeadersEditor(JTextArea textArea) {
         UndoManager undoManager = new UndoManager();
         textArea.getDocument().addUndoableEditListener(e -> undoManager.addEdit(e.getEdit()));
-
-        textArea.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()), "Undo");
+        textArea.getInputMap().put(KeyStroke.getKeyStroke("control Z"), "Undo");
         textArea.getActionMap().put("Undo", new AbstractAction() {
             public void actionPerformed(ActionEvent e) {
                 if (undoManager.canUndo()) undoManager.undo();
             }
         });
+    }
 
-        textArea.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_Y, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()), "Redo");
-        textArea.getActionMap().put("Redo", new AbstractAction() {
-            public void actionPerformed(ActionEvent e) {
-                if (undoManager.canRedo()) undoManager.redo();
+    private void applyTheme(boolean dark) {
+        try {
+            if (dark) {
+                FlatDarkLaf.setup();
+                Theme theme = Theme.load(getClass().getResourceAsStream("/org/fife/ui/rsyntaxtextarea/themes/dark.xml"));
+                theme.apply(bodyArea);
+                theme.apply(responseArea);
+            } else {
+                FlatLightLaf.setup();
+                Theme theme = Theme.load(getClass().getResourceAsStream("/org/fife/ui/rsyntaxtextarea/themes/default.xml"));
+                theme.apply(bodyArea);
+                theme.apply(responseArea);
             }
-        });
+            SwingUtilities.updateComponentTreeUI(this);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private void send() {
         try {
-            HashMap<String,String> headers = new HashMap<>();
+            HashMap<String, String> headers = new HashMap<>();
 
             for (String line : headersArea.getText().split("\n")) {
                 if (line.contains(":")) {
-                    String[] parts = line.split(":",2);
+                    String[] parts = line.split(":", 2);
                     headers.put(parts[0].trim(), parts[1].trim());
                 }
             }
