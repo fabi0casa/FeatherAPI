@@ -6,7 +6,11 @@ import model.HistoryEntry;
 import util.*;
 
 import javax.swing.*;
+import javax.swing.undo.UndoManager;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.util.HashMap;
 
 public class MainFrame extends JFrame {
@@ -33,8 +37,11 @@ public class MainFrame extends JFrame {
         methodBox = new JComboBox<>(new String[]{"GET","POST","PUT","DELETE","PATCH"});
 
         bodyArea = new JTextArea();
+        setupEditor(bodyArea);
+
         responseArea = new JTextArea();
         headersArea = new JTextArea("Content-Type: application/json");
+        setupEditor(headersArea);
 
         responseArea.setEditable(false);
 
@@ -80,6 +87,37 @@ public class MainFrame extends JFrame {
         add(center, BorderLayout.CENTER);
         add(bottom, BorderLayout.SOUTH);
         add(historyPanel, BorderLayout.EAST);
+    }
+
+    private void setupEditor(JTextArea textArea) {
+        // Tab -> 4 spaces
+        textArea.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_TAB) {
+                    e.consume();
+                    textArea.replaceSelection("    ");
+                }
+            }
+        });
+
+        // Undo / Redo
+        UndoManager undoManager = new UndoManager();
+        textArea.getDocument().addUndoableEditListener(e -> undoManager.addEdit(e.getEdit()));
+
+        textArea.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()), "Undo");
+        textArea.getActionMap().put("Undo", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                if (undoManager.canUndo()) undoManager.undo();
+            }
+        });
+
+        textArea.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_Y, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()), "Redo");
+        textArea.getActionMap().put("Redo", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                if (undoManager.canRedo()) undoManager.redo();
+            }
+        });
     }
 
     private void send() {
