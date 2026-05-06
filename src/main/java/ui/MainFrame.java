@@ -28,7 +28,7 @@ public class MainFrame extends JFrame {
     private JTextArea headersArea;
     private DefaultListModel<HistoryEntry> historyModel;
     private JList<HistoryEntry> historyList;
-    private JCheckBox darkThemeBox;
+    private JComboBox<String> themeSelector;
 
     private final ApiService api = new ApiService();
 
@@ -55,14 +55,12 @@ public class MainFrame extends JFrame {
         setupEditor(responseArea);
 
         headersArea = new JTextArea("Content-Type: application/json");
-        // Para headers mantemos JTextArea simples ou configuramos sem numeração de linha
-        // mas vamos aplicar o setupEditor para o Undo/Redo
 
         JButton sendBtn = new JButton("Enviar");
         JButton copyBtn = new JButton("Copiar resposta");
 
-        darkThemeBox = new JCheckBox("Tema Escuro");
-        darkThemeBox.addActionListener(e -> applyTheme(darkThemeBox.isSelected()));
+        themeSelector = new JComboBox<>(new String[]{"Claro", "Escuro", "Windows", "Nimbus", "Metal"});
+        themeSelector.addActionListener(e -> applyTheme((String) themeSelector.getSelectedItem()));
 
         historyModel = new DefaultListModel<>();
         historyList = new JList<>(historyModel);
@@ -80,7 +78,8 @@ public class MainFrame extends JFrame {
         copyBtn.addActionListener(e -> ClipboardUtil.copy(responseArea.getText()));
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonPanel.add(darkThemeBox);
+        buttonPanel.add(new JLabel("Tema: "));
+        buttonPanel.add(themeSelector);
         buttonPanel.add(sendBtn);
 
         JPanel top = new JPanel(new BorderLayout());
@@ -117,16 +116,13 @@ public class MainFrame extends JFrame {
         add(top, BorderLayout.NORTH);
         add(mainSplit, BorderLayout.CENTER);
 
-        // Aplicar Undo/Redo no headersArea que não é RSyntaxTextArea
+        // Aplicar Undo/Redo no headersArea
         setupHeadersEditor(headersArea);
     }
 
     private void setupEditor(RSyntaxTextArea textArea) {
         textArea.setTabSize(4);
-        textArea.setTabsEmulated(true); // Converte TAB em espaços automaticamente
-
-        // Undo / Redo já é nativo no RSyntaxTextArea, mas podemos reforçar atalhos se necessário
-        // No RSyntaxTextArea, Ctrl+Z e Ctrl+Y funcionam por padrão.
+        textArea.setTabsEmulated(true);
     }
 
     private void setupHeadersEditor(JTextArea textArea) {
@@ -140,21 +136,31 @@ public class MainFrame extends JFrame {
         });
     }
 
-    private void applyTheme(boolean dark) {
+    private void applyTheme(String themeName) {
         try {
-            if (dark) {
+            Theme syntaxTheme;
+            if ("Escuro".equals(themeName)) {
                 FlatDarkLaf.setup();
-                Theme theme = Theme.load(getClass().getResourceAsStream("/org/fife/ui/rsyntaxtextarea/themes/dark.xml"));
-                theme.apply(bodyArea);
-                theme.apply(responseArea);
+                syntaxTheme = Theme.load(getClass().getResourceAsStream("/org/fife/ui/rsyntaxtextarea/themes/dark.xml"));
+            } else if ("Nimbus".equals(themeName)) {
+                UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
+                syntaxTheme = Theme.load(getClass().getResourceAsStream("/org/fife/ui/rsyntaxtextarea/themes/default.xml"));
+            } else if ("Metal".equals(themeName)) {
+                UIManager.setLookAndFeel("javax.swing.plaf.metal.MetalLookAndFeel");
+                syntaxTheme = Theme.load(getClass().getResourceAsStream("/org/fife/ui/rsyntaxtextarea/themes/default.xml"));
+            } else if ("Windows".equals(themeName)) {
+                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+                syntaxTheme = Theme.load(getClass().getResourceAsStream("/org/fife/ui/rsyntaxtextarea/themes/default.xml"));
             } else {
                 FlatLightLaf.setup();
-                Theme theme = Theme.load(getClass().getResourceAsStream("/org/fife/ui/rsyntaxtextarea/themes/default.xml"));
-                theme.apply(bodyArea);
-                theme.apply(responseArea);
+                syntaxTheme = Theme.load(getClass().getResourceAsStream("/org/fife/ui/rsyntaxtextarea/themes/default.xml"));
             }
+            
+            syntaxTheme.apply(bodyArea);
+            syntaxTheme.apply(responseArea);
             SwingUtilities.updateComponentTreeUI(this);
-        } catch (IOException e) {
+            this.setSize(1000, 700);
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
