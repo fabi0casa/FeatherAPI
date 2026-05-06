@@ -20,7 +20,8 @@ public class MainFrame extends JFrame {
     private JTextArea bodyArea;
     private JTextArea responseArea;
     private JTextArea headersArea;
-    private JComboBox<HistoryEntry> historyBox;
+    private DefaultListModel<HistoryEntry> historyModel;
+    private JList<HistoryEntry> historyList;
 
     private final ApiService api = new ApiService();
 
@@ -48,11 +49,15 @@ public class MainFrame extends JFrame {
         JButton sendBtn = new JButton("Enviar");
         JButton copyBtn = new JButton("Copiar resposta");
 
-        historyBox = new JComboBox<>();
-        historyBox.addActionListener(e -> {
-            HistoryEntry selected = (HistoryEntry) historyBox.getSelectedItem();
-            if (selected != null) {
-                responseArea.setText(selected.response);
+        historyModel = new DefaultListModel<>();
+        historyList = new JList<>(historyModel);
+        historyList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        historyList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                HistoryEntry selected = historyList.getSelectedValue();
+                if (selected != null) {
+                    responseArea.setText(selected.response);
+                }
             }
         });
 
@@ -78,15 +83,23 @@ public class MainFrame extends JFrame {
         bottom.add(new JScrollPane(responseArea), BorderLayout.CENTER);
         bottom.add(copyBtn, BorderLayout.SOUTH);
 
+        // Split vertical entre Body e Resposta
+        JSplitPane verticalSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, center, bottom);
+        verticalSplit.setDividerLocation(250);
+        verticalSplit.setResizeWeight(0.5);
+
         JPanel historyPanel = new JPanel(new BorderLayout());
-        historyPanel.add(new JLabel("Histórico"), BorderLayout.NORTH);
-        historyPanel.add(historyBox, BorderLayout.CENTER);
+        historyPanel.add(new JLabel(" Histórico"), BorderLayout.NORTH);
+        historyPanel.add(new JScrollPane(historyList), BorderLayout.CENTER);
+
+        // Split horizontal entre a área principal e o Histórico
+        JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, verticalSplit, historyPanel);
+        mainSplit.setDividerLocation(650);
+        mainSplit.setResizeWeight(0.8);
 
         setLayout(new BorderLayout());
         add(top, BorderLayout.NORTH);
-        add(center, BorderLayout.CENTER);
-        add(bottom, BorderLayout.SOUTH);
-        add(historyPanel, BorderLayout.EAST);
+        add(mainSplit, BorderLayout.CENTER);
     }
 
     private void setupEditor(JTextArea textArea) {
@@ -147,7 +160,7 @@ public class MainFrame extends JFrame {
 
             String requestInfo = data.method + " " + data.url;
             HistoryManager.add(requestInfo, fullResponse);
-            historyBox.addItem(new HistoryEntry(requestInfo, fullResponse));
+            historyModel.insertElementAt(new HistoryEntry(requestInfo, fullResponse), 0);
 
         } catch (Exception ex) {
             responseArea.setText("Erro: " + ex.getMessage());
