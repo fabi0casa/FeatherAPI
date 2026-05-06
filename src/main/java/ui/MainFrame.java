@@ -193,6 +193,7 @@ public class MainFrame extends JFrame {
             String requestInfo = data.method + " " + data.url;
             HistoryManager.add(requestInfo, fullResponse);
             historyModel.insertElementAt(new HistoryEntry(requestInfo, fullResponse), 0);
+            historyList.setSelectedIndex(0);
 
         } catch (Exception ex) {
             responseArea.setText("Erro: " + ex.getMessage());
