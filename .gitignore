@@ -1,1 +1,6 @@
+# java compile
 /target
+
+# .exe compile
+dependency-reduced-pom.xml
+/dist
