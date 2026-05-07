@@ -17,7 +17,9 @@ import javax.swing.undo.UndoManager;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.io.IOException;
+import java.net.http.HttpResponse;
 import java.util.HashMap;
+import java.util.concurrent.CompletableFuture;
 
 public class MainFrame extends JFrame {
 
@@ -29,8 +31,12 @@ public class MainFrame extends JFrame {
     private DefaultListModel<HistoryEntry> historyModel;
     private JList<HistoryEntry> historyList;
     private JComboBox<String> themeSelector;
+    private JButton sendBtn;
 
     private final ApiService api = new ApiService();
+    private CompletableFuture<HttpResponse<String>> currentRequest;
+    private Timer timeoutTimer;
+    private JDialog timeoutDialog;
 
     public MainFrame() {
         setTitle("Feather API");
@@ -56,7 +62,7 @@ public class MainFrame extends JFrame {
 
         headersArea = new JTextArea("Content-Type: application/json");
 
-        JButton sendBtn = new JButton("Enviar");
+        sendBtn = new JButton("Enviar");
         JButton copyBtn = new JButton("Copiar resposta");
 
         themeSelector = new JComboBox<>(new String[]{"Claro", "Escuro", "Windows", "Nimbus", "Metal"});
@@ -183,21 +189,92 @@ public class MainFrame extends JFrame {
                     headers
             );
 
-            var response = api.send(data);
+            sendBtn.setEnabled(false);
+            responseArea.setText("Carregando...");
 
-            String formatted = JsonFormatter.format(response.body());
-            String fullResponse = "Status: " + response.statusCode() + "\n\n" + formatted;
+            currentRequest = api.sendAsync(data);
+            startTimeoutTimer();
 
-            responseArea.setText(fullResponse);
-
-            String requestInfo = data.method + " " + data.url;
-            HistoryManager.add(requestInfo, fullResponse);
-            historyModel.insertElementAt(new HistoryEntry(requestInfo, fullResponse), 0);
-            historyList.setSelectedIndex(0);
+            currentRequest.thenAccept(response -> {
+                SwingUtilities.invokeLater(() -> {
+                    stopTimeoutTimer();
+                    handleResponse(response, data);
+                    sendBtn.setEnabled(true);
+                });
+            }).exceptionally(ex -> {
+                SwingUtilities.invokeLater(() -> {
+                    stopTimeoutTimer();
+                    if (currentRequest != null && !currentRequest.isCancelled()) {
+                        responseArea.setText("Erro: " + ex.getMessage());
+                    }
+                    sendBtn.setEnabled(true);
+                });
+                return null;
+            });
 
         } catch (Exception ex) {
             responseArea.setText("Erro: " + ex.getMessage());
+            sendBtn.setEnabled(true);
         }
+    }
+
+    private void handleResponse(HttpResponse<String> response, RequestData data) {
+        String formatted = JsonFormatter.format(response.body());
+        String fullResponse = "Status: " + response.statusCode() + "\n\n" + formatted;
+
+        responseArea.setText(fullResponse);
+
+        String requestInfo = data.method + " " + data.url;
+        HistoryManager.add(requestInfo, fullResponse);
+        historyModel.insertElementAt(new HistoryEntry(requestInfo, fullResponse), 0);
+        historyList.setSelectedIndex(0);
+    }
+
+    private void startTimeoutTimer() {
+        if (timeoutTimer != null) timeoutTimer.stop();
+        timeoutTimer = new Timer(10000, e -> showTimeoutPopup());
+        timeoutTimer.setRepeats(false);
+        timeoutTimer.start();
+    }
+
+    private void stopTimeoutTimer() {
+        if (timeoutTimer != null) timeoutTimer.stop();
+        if (timeoutDialog != null) {
+            timeoutDialog.dispose();
+            timeoutDialog = null;
+        }
+    }
+
+    private void showTimeoutPopup() {
+        Object[] options = {"Continuar esperando", "Cancelar operação"};
+        JOptionPane pane = new JOptionPane(
+                "A API está demorando muito para responder.\nO que deseja fazer?",
+                JOptionPane.WARNING_MESSAGE,
+                JOptionPane.YES_NO_OPTION,
+                null,
+                options,
+                options[0]
+        );
+
+        timeoutDialog = pane.createDialog(this, "Aviso de Timeout");
+        
+        pane.addPropertyChangeListener(e -> {
+            if (e.getPropertyName().equals(JOptionPane.VALUE_PROPERTY)) {
+                Object value = pane.getValue();
+                if (value == options[0]) {
+                    startTimeoutTimer();
+                    timeoutDialog.dispose();
+                    timeoutDialog = null;
+                } else if (value == options[1]) {
+                    if (currentRequest != null) currentRequest.cancel(true);
+                    responseArea.setText("Operação cancelada pelo usuário.");
+                    timeoutDialog.dispose();
+                    timeoutDialog = null;
+                }
+            }
+        });
+
+        timeoutDialog.setVisible(true);
     }
 
 }
